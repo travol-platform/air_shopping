@@ -6,7 +6,6 @@ const {
   Orchestrator,
   Config,
   combine,
-  singleConductor,
   localOnly,
   tapeExecutor
 } = require("@holochain/tryorama");
@@ -68,30 +67,31 @@ orchestrator.registerScenario("Test hello holo", async (s, t) => {
     },
     operation_carrier: { airline_id: "String", name: "String" },
     equipement: {
-      aircraft_code: 2,
+      aircraft_code: "2",
       name: "String"
     },
     class_of_service: {
-      code: 32,
-      markting_name: { cabin_designator: 32, name: "String" }
+      code: "32",
+      markting_name: { cabin_designator: "32", name: "String" }
     },
     flight_detail: {
       flight_segment_type: "String",
       flight_duration: "String",
-      stops: 32
+      stops: "32"
     }
   };
   const result = await alice.call(
     "h_air",
     "air_shopping",
     "create_flight_segment",
-    expect
+    { flight_segment: expect }
   );
+  await s.consistency()
   const result2 = await alice.call(
     "h_air",
     "air_shopping",
-    "get_flight_segment",
-    { segment_key: "holssd" }
+    "get_entry",
+    { type: "flight_segment", key: "holssd" }
   );
   console.log(result);
   t.ok(result);

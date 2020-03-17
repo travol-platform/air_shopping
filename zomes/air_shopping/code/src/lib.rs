@@ -9,63 +9,63 @@ use hdk_proc_macros::zome;
 
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct FlightSegment {
-    anchor_address: Address,
+    anchor_address: Option<Address>,
     secure_flight: bool,
     segment_key: String,
-    departure: Departure,
-    arrival: Arrival,
-    marketing_carrier: MarketingCarrier,
-    operation_carrier: OperatingCarrier,
-    equipement: Equipment,
-    class_of_service: ClassOfService,
-    flight_detail: FlightDetail,
+    departure: Option<Departure>,
+    arrival: Option<Arrival>,
+    marketing_carrier: Option<MarketingCarrier>,
+    operation_carrier: Option<OperatingCarrier>,
+    equipement: Option<Equipment>,
+    class_of_service: Option<ClassOfService>,
+    flight_detail: Option<FlightDetail>,
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct Departure {
-    airport_code: String,
-    timestamp: String,
-    airport_name: String,
-    terminal_name: String,
+    airport_code: Option<String>,
+    timestamp: Option<String>,
+    airport_name: Option<String>,
+    terminal_name: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct Arrival {
-    airport_code: String,
-    timestamp: String,
-    change_of_day: String,
-    airport_name: String,
-    terminal_name: String,
+    airport_code: Option<String>,
+    timestamp: Option<String>,
+    change_of_day: Option<String>,
+    airport_name: Option<String>,
+    terminal_name: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct MarketingCarrier {
-    airline_id: String,
-    name: String,
-    flight_number: String,
+    airline_id: Option<String>,
+    name: Option<String>,
+    flight_number: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct OperatingCarrier {
-    airline_id: String,
-    name: String,
+    airline_id: Option<String>,
+    name: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct Equipment {
-    aircraft_code: i32,
-    name: String,
+    aircraft_code: Option<String>,
+    name: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct ClassOfService {
-    code: i32,
-    markting_name: MarketingName,
+    code: Option<String>,
+    markting_name: Option<MarketingName>,
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct MarketingName {
-    cabin_designator: i32,
-    name: String,
+    cabin_designator: Option<String>,
+    name: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct FlightDetail {
-    flight_segment_type: String,
-    flight_duration: String,
-    stops: i32,
+    flight_segment_type: Option<String>,
+    flight_duration: Option<String>,
+    stops: Option<String>,
 }
 impl FlightSegment {
     fn entry(self) -> Entry {
@@ -75,15 +75,14 @@ impl FlightSegment {
 impl Fare {
     fn entry(self) -> Entry {
         Entry::App("fare".into(), self.into())
-    }
-}
-#[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
+    }VE
+    ize, Debug, DefaultJson, Clone)]
 pub struct Fare {
-    anchor_address: Address,
+    anchor_address: Option<Address>,
     refs: String,
     list_key: String,
-    fare_code: String,
-    fare_basis_code: String,
+    fare_code: Option<String>,
+    fare_basis_code: Option<String>,
 }
 
 #[zome]
@@ -155,33 +154,16 @@ mod air_shopping {
         )
     }
     #[zome_fn("hc_public")]
-    fn create_flight_segment(
-        secure_flight: bool,
-        segment_key: String,
-        departure: Departure,
-        arrival: Arrival,
-        marketing_carrier: MarketingCarrier,
-        operation_carrier: OperatingCarrier,
-        equipement: Equipment,
-        class_of_service: ClassOfService,
-        flight_detail: FlightDetail,
-    ) -> ZomeApiResult<Address> {
-        let anchor_address =
-            holochain_anchors::anchor("fligth_segment".to_string(), segment_key.clone())?;
+    fn create_flight_segment(flight_segment: FlightSegment) -> ZomeApiResult<Address> {
+        let mut flight_segment = flight_segment;
+        let anchor_address = holochain_anchors::anchor(
+            "flight_segment".to_string(),
+            flight_segment.segment_key.clone(),
+        )?;
+        flight_segment.anchor_address = Some(anchor_address.clone());
+        hdk::debug::<JsonString>(flight_segment.clone().into())?;
 
-        let flight_segment_entry = FlightSegment {
-            anchor_address: anchor_address.clone(),
-            secure_flight,
-            segment_key,
-            departure,
-            arrival,
-            marketing_carrier,
-            operation_carrier,
-            equipement,
-            class_of_service,
-            flight_detail,
-        }
-        .entry();
+        let flight_segment_entry = flight_segment.entry();
         let flight_segment_address = hdk::commit_entry(&flight_segment_entry)?;
         hdk::link_entries(
             &anchor_address,
@@ -194,9 +176,11 @@ mod air_shopping {
     #[zome_fn("hc_public")]
     fn get_entry(r#type: String, key: String) -> ZomeApiResult<JsonString> {
         let anchor_address = holochain_anchors::anchor(r#type.clone(), key.clone())?;
+        hdk::debug::<JsonString>(anchor_address.clone().into())?;
+
         let option_address = hdk::get_links(
             &anchor_address,
-            LinkMatch::Exactly(&("anchor->".to_owned() + &r#type)),
+            LinkMatch::Exactly(&("anchor->".to_string() + &r#type)),
             LinkMatch::Any,
         )?;
         if let Some(address) = option_address.addresses().last() {
@@ -209,22 +193,11 @@ mod air_shopping {
         }
     }
     #[zome_fn("hc_public")]
-    fn create_fare(
-        refs: String,
-        list_key: String,
-        fare_code: String,
-        fare_basis_code: String,
-    ) -> ZomeApiResult<Address> {
-        let anchor_address = holochain_anchors::anchor("fare".to_string(), list_key.clone())?;
-
-        let fare_entry = Fare {
-            anchor_address: anchor_address.clone(),
-            refs,
-            list_key,
-            fare_code,
-            fare_basis_code,
-        }
-        .entry();
+    fn create_fare(fare: Fare) -> ZomeApiResult<Address> {
+        let mut fare = fare;
+        let anchor_address = holochain_anchors::anchor("fare".to_string(), fare.list_key.clone())?;
+        fare.anchor_address = Some(anchor_address.clone());
+        let fare_entry = fare.entry();
         let fare_address = hdk::commit_entry(&fare_entry)?;
         hdk::link_entries(&anchor_address, &fare_address.clone(), "anchor->fare", "")?;
         Ok(fare_address)
