@@ -9,12 +9,11 @@ use hdk_proc_macros::zome;
 
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct FlightSegment {
-    anchor_address: Option<Address>,
-    secure_flight: bool,
+    secure_flight: Option<bool>,
     segment_key: String,
-    departure: Option<Departure>,
-    arrival: Option<Arrival>,
-    marketing_carrier: Option<MarketingCarrier>,
+    departure: Departure,
+    arrival: Arrival,
+    marketing_carrier: MarketingCarrier,
     operation_carrier: Option<OperatingCarrier>,
     equipement: Option<Equipment>,
     class_of_service: Option<ClassOfService>,
@@ -22,14 +21,14 @@ pub struct FlightSegment {
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct Departure {
-    airport_code: Option<String>,
-    timestamp: Option<String>,
+    airport_code: String,
+    timestamp: String,
     airport_name: Option<String>,
     terminal_name: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct Arrival {
-    airport_code: Option<String>,
+    airport_code: String,
     timestamp: Option<String>,
     change_of_day: Option<String>,
     airport_name: Option<String>,
@@ -37,9 +36,9 @@ pub struct Arrival {
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct MarketingCarrier {
-    airline_id: Option<String>,
+    airline_id: String,
     name: Option<String>,
-    flight_number: Option<String>,
+    flight_number: String,
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct OperatingCarrier {
@@ -48,7 +47,7 @@ pub struct OperatingCarrier {
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct Equipment {
-    aircraft_code: Option<String>,
+    aircraft_code: String,
     name: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
@@ -61,11 +60,19 @@ pub struct MarketingName {
     cabin_designator: Option<String>,
     name: Option<String>,
 }
+
+#[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
+pub struct StopLocation {
+    airport_code: String,
+    arrival_timestamp: String,
+    departure_timestamp: String,
+}
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct FlightDetail {
     flight_segment_type: Option<String>,
-    flight_duration: Option<String>,
+    flight_duration: String,
     stops: Option<String>,
+    stop_location: Vec<StopLocation>,
 }
 impl FlightSegment {
     fn entry(self) -> Entry {
@@ -75,14 +82,14 @@ impl FlightSegment {
 impl Fare {
     fn entry(self) -> Entry {
         Entry::App("fare".into(), self.into())
-    }VE
-    ize, Debug, DefaultJson, Clone)]
+    }
+}
+#[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct Fare {
-    anchor_address: Option<Address>,
     refs: String,
     list_key: String,
-    fare_code: Option<String>,
-    fare_basis_code: Option<String>,
+    fare_code: String,
+    fare_basis_code: String,
 }
 
 #[zome]
@@ -155,13 +162,10 @@ mod air_shopping {
     }
     #[zome_fn("hc_public")]
     fn create_flight_segment(flight_segment: FlightSegment) -> ZomeApiResult<Address> {
-        let mut flight_segment = flight_segment;
         let anchor_address = holochain_anchors::anchor(
             "flight_segment".to_string(),
             flight_segment.segment_key.clone(),
         )?;
-        flight_segment.anchor_address = Some(anchor_address.clone());
-        hdk::debug::<JsonString>(flight_segment.clone().into())?;
 
         let flight_segment_entry = flight_segment.entry();
         let flight_segment_address = hdk::commit_entry(&flight_segment_entry)?;
@@ -194,9 +198,7 @@ mod air_shopping {
     }
     #[zome_fn("hc_public")]
     fn create_fare(fare: Fare) -> ZomeApiResult<Address> {
-        let mut fare = fare;
         let anchor_address = holochain_anchors::anchor("fare".to_string(), fare.list_key.clone())?;
-        fare.anchor_address = Some(anchor_address.clone());
         let fare_entry = fare.entry();
         let fare_address = hdk::commit_entry(&fare_entry)?;
         hdk::link_entries(&anchor_address, &fare_address.clone(), "anchor->fare", "")?;
