@@ -71,13 +71,18 @@ orchestrator.registerScenario("Test hello holo", async (s, t) => {
       name: "String"
     },
     class_of_service: {
-      code: "32",
+      ref: "holass ", code: '32', seats_left: "9",
       markting_name: { cabin_designator: "32", name: "String" }
     },
     flight_detail: {
       flight_segment_type: "String",
       flight_duration: "String",
-      stops: "32"
+      stops: "32",
+      stop_location: [{
+        airport_code: "String",
+        arrival_timestamp: "String",
+        departure_timestamp: "String",
+      }]
     }
   };
   const result = await alice.call(
@@ -93,8 +98,7 @@ orchestrator.registerScenario("Test hello holo", async (s, t) => {
     "get_entry",
     { type: "flight_segment", key: "holssd" }
   );
-  console.log(result);
-  t.ok(result);
+  t.ok(result.Ok);
   delete result2.Ok.anchor_address;
   t.deepEqual(result2.Ok, expect);
 });

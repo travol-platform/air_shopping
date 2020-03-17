@@ -52,7 +52,9 @@ pub struct Equipment {
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct ClassOfService {
-    code: Option<String>,
+    r#ref: Option<String>,
+    code: String,
+    seats_left: Option<String>,
     markting_name: Option<MarketingName>,
 }
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
@@ -74,22 +76,34 @@ pub struct FlightDetail {
     stops: Option<String>,
     stop_location: Vec<StopLocation>,
 }
-impl FlightSegment {
-    fn entry(self) -> Entry {
-        Entry::App("flight_segment".into(), self.into())
-    }
-}
-impl Fare {
-    fn entry(self) -> Entry {
-        Entry::App("fare".into(), self.into())
-    }
-}
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct Fare {
     refs: String,
     list_key: String,
     fare_code: String,
     fare_basis_code: String,
+}
+#[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
+pub struct PriceClass {
+    price_class_id: String,
+    name: String,
+    descriptions: Option<Vec<String>>,
+    class_of_service: Option<ClassOfService>,
+}
+impl FlightSegment {
+    fn entry(self) -> Entry {
+        Entry::App("flight_segment".into(), self.into())
+    }
+}
+impl PriceClass {
+    fn entry(self) -> Entry {
+        Entry::App("price_class".into(), self.into())
+    }
+}
+impl Fare {
+    fn entry(self) -> Entry {
+        Entry::App("fare".into(), self.into())
+    }
 }
 
 #[zome]
@@ -160,6 +174,32 @@ mod air_shopping {
             ]
         )
     }
+    #[entry_def]
+    fn price_class_def() -> ValidatingEntryType {
+        entry!(
+            name: "price_class",
+            description: "this is a same entry defintion",
+            sharing: Sharing::Public,
+            validation_package: || {
+                hdk::ValidationPackageDefinition::Entry
+            },
+            validation: | _validation_data: hdk::EntryValidationData<PriceClass>| {
+                Ok(())
+            },
+            links: [
+                from!(
+                    holochain_anchors::ANCHOR_TYPE,
+                    link_type: "anchor->price_class",
+                    validation_package: || {
+                        hdk::ValidationPackageDefinition::Entry
+                    },
+                    validation: |_validation_data: hdk::LinkValidationData| {
+                       Ok(())
+                    }
+                )
+            ]
+        )
+    }
     #[zome_fn("hc_public")]
     fn create_flight_segment(flight_segment: FlightSegment) -> ZomeApiResult<Address> {
         let anchor_address = holochain_anchors::anchor(
@@ -203,5 +243,47 @@ mod air_shopping {
         let fare_address = hdk::commit_entry(&fare_entry)?;
         hdk::link_entries(&anchor_address, &fare_address.clone(), "anchor->fare", "")?;
         Ok(fare_address)
+    }
+    #[zome_fn("hc_public")]
+    fn create_price_class(price_class: PriceClass) -> ZomeApiResult<Address> {
+        let anchor_address = holochain_anchors::anchor(
+            "price_class".to_string(),
+            price_class.price_class_id.clone(),
+        )?;
+
+        let price_class_entry = price_class.clone().entry();
+        let price_class_address = hdk::commit_entry(&price_class_entry)?;
+        hdk::link_entries(
+            &anchor_address,
+            &price_class_address.clone(),
+            "anchor->price_class",
+            "",
+        )?;
+        if let Some(class_of_service) = price_class.class_of_service {
+            if let Some(r#ref) = class_of_service.r#ref {
+                let mut iter = r#ref.split_ascii_whitespace();
+                if let Some(s) = iter.next() {
+                    let anchor_address =
+                        holochain_anchors::anchor("flight_segment".to_string(), s.to_string())?;
+                    hdk::link_entries(
+                        &anchor_address,
+                        &price_class_address.clone(),
+                        "anchor->price_class",
+                        "",
+                    )?;
+                }
+                if let Some(s) = iter.next() {
+                    let anchor_address =
+                        holochain_anchors::anchor("fare".to_string(), s.to_string())?;
+                    hdk::link_entries(
+                        &anchor_address,
+                        &price_class_address.clone(),
+                        "anchor->price_class",
+                        "",
+                    )?;
+                }
+            }
+        }
+        Ok(price_class_address)
     }
 }
