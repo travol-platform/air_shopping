@@ -6,7 +6,7 @@ use hdk_proc_macros::zome;
 
 // This is a sample zome that defines an entry type "MyEntry" that can be committed to the
 // agent's chain via the exposed function create_my_entry
-
+mod utils;
 #[derive(Serialize, Deserialize, Debug, DefaultJson, Clone)]
 pub struct FlightSegment {
     secure_flight: Option<bool>,
@@ -184,7 +184,14 @@ mod air_shopping {
                 hdk::ValidationPackageDefinition::Entry
             },
             validation: | _validation_data: hdk::EntryValidationData<PriceClass>| {
-                Ok(())
+                match _validation_data{
+                    hdk::EntryValidationData::Create{
+                        entry,..
+                    }=>{
+                        utils::validation_ref_price_class(entry)
+                    },
+                    _=>Err("only create".to_string())
+                }
             },
             links: [
                 from!(
